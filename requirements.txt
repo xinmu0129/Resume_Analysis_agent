@@ -1,0 +1,45 @@
+# ============================================================
+# resume-analysis-agent — 自行安装的依赖清单
+# ============================================================
+#
+# 以下依赖由 pom.xml 管理，Maven 自动下载，无需手动安装：
+#
+#   1. Java 17 (JDK)
+#      - 下载: https://adoptium.net/download/
+#      - 确认: java -version
+#
+#   2. Maven 3.8+
+#      - 下载: https://maven.apache.org/download.cgi
+#      - 确认: mvn -version
+#
+#   3. MySQL 8.0+
+#      - 下载: https://dev.mysql.com/downloads/mysql/
+#      - 确认: mysql --version
+#
+# ============================================================
+# 启动步骤:
+# ============================================================
+#
+#   1. 确保 JDK 17 + Maven 已安装并配置到 PATH
+#
+#   2. 编译 & 启动:
+#        mvn clean compile spring-boot:run
+#
+#   3. 验证健康检查:
+#        curl http://localhost:8080/api/health
+#        预期返回: {"code":200,"message":"OK","data":"OK"}
+#
+#   4. 打包可执行 jar:
+#        mvn clean package -DskipTests
+#        java -jar target/resume-analysis-agent-0.0.1-SNAPSHOT.jar
+#
+# ============================================================
+# Maven 依赖 (pom.xml 已配置，mvn compile 自动拉取):
+# ============================================================
+#
+#   - spring-boot-starter-web      (Spring Boot 3.2.7)
+#   - mybatis-plus-spring-boot3-starter (3.5.7)
+#   - mysql-connector-j            (MySQL JDBC 驱动)
+#   - lombok                       (编译期注解)
+#   - spring-boot-starter-test     (测试)
+#
