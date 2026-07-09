@@ -23,3 +23,21 @@ CREATE TABLE IF NOT EXISTS resume (
     INDEX idx_status (status),
     INDEX idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='简历表';
+
+-- 岗位JD表
+CREATE TABLE IF NOT EXISTS job (
+    id          BIGINT          AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    title       VARCHAR(255)    NOT NULL                COMMENT '岗位名称',
+    company     VARCHAR(255)    NULL                    COMMENT '公司名称',
+    raw_text    LONGTEXT        NULL                    COMMENT 'JD原始文本',
+    source_type VARCHAR(20)     NOT NULL                COMMENT '录入方式: UPLOAD / TEXT',
+    source_path VARCHAR(500)    NULL                    COMMENT '文件路径 (UPLOAD时)',
+    file_name   VARCHAR(255)    NULL                    COMMENT '原始文件名 (UPLOAD时)',
+    file_size   BIGINT          NULL      DEFAULT 0     COMMENT '文件大小(字节) (UPLOAD时)',
+    status      VARCHAR(20)     NOT NULL  DEFAULT 'PARSED' COMMENT '状态: UPLOADING/PARSING/PARSED/FAILED',
+    create_time DATETIME        NOT NULL  DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME        NOT NULL  DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted     TINYINT(1)      NOT NULL  DEFAULT 0     COMMENT '逻辑删除 (0=正常, 1=已删除)',
+    INDEX idx_source_type (source_type),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位JD表';
