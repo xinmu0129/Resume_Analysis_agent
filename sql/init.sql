@@ -41,3 +41,22 @@ CREATE TABLE IF NOT EXISTS job (
     INDEX idx_source_type (source_type),
     INDEX idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位JD表';
+
+-- 匹配记录表
+CREATE TABLE IF NOT EXISTS match_record (
+    id          BIGINT          AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    resume_id   BIGINT          NOT NULL                COMMENT '简历ID',
+    job_id      BIGINT          NOT NULL                COMMENT '岗位JD ID',
+    match_score INT             NOT NULL  DEFAULT 0     COMMENT '匹配得分 (0-100)',
+    is_matched  TINYINT(1)      NOT NULL  DEFAULT 0     COMMENT '是否匹配 (0=否, 1=是)',
+    strengths   TEXT            NULL                    COMMENT '优势列表 (JSON数组)',
+    gaps        TEXT            NULL                    COMMENT '差距列表 (JSON数组)',
+    suggestions TEXT            NULL                    COMMENT '优化建议列表 (JSON数组)',
+    raw_response LONGTEXT       NULL                    COMMENT 'LLM原始响应',
+    status      VARCHAR(20)     NOT NULL  DEFAULT 'COMPLETED' COMMENT '状态: PROCESSING/COMPLETED/FAILED',
+    create_time DATETIME        NOT NULL  DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME        NOT NULL  DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted     TINYINT(1)      NOT NULL  DEFAULT 0     COMMENT '逻辑删除',
+    INDEX idx_resume_id (resume_id),
+    INDEX idx_job_id (job_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='匹配记录表';

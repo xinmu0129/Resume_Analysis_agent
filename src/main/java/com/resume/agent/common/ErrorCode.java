@@ -26,7 +26,11 @@ public enum ErrorCode {
     FILE_UPLOAD_FAILED(20004, "文件上传失败"),
 
     // 参数校验
-    PARAM_MISSING(30001, "必填参数缺失");
+    PARAM_MISSING(30001, "必填参数缺失"),
+
+    // LLM 相关错误 (4xxxx)
+    LLM_ERROR(40001, "LLM分析失败"),
+    LLM_PARSE_ERROR(40002, "LLM响应解析失败");
 
     private final int code;
     private final String message;

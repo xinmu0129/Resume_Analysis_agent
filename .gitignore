@@ -39,3 +39,4 @@ logs/
 .env.local
 
 application-dev.yml
+application.yml
