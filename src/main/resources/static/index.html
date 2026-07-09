@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume Analysis Agent</title>
+<style>
+/* ====== Reset & Variables ====== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f7fa; --card:#fff; --border:#e5e7eb; --text:#1f2937; --text2:#6b7280;
+  --primary:#4f46e5; --primary-hover:#4338ca; --success:#10b981; --danger:#ef4444;
+  --warning:#f59e0b; --radius:12px; --shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+/* ====== Header ====== */
+header{background:linear-gradient(135deg,var(--primary),#7c3aed);color:#fff;padding:28px 0;text-align:center}
+header h1{font-size:1.8rem;font-weight:700;letter-spacing:-.5px}
+header p{opacity:.85;margin-top:4px;font-size:.95rem}
+/* ====== Layout ====== */
+.container{max-width:1100px;margin:0 auto;padding:24px 20px 60px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:24px}
+@media(max-width:860px){.steps{grid-template-columns:1fr}}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;border:1px solid var(--border);display:flex;flex-direction:column;gap:16px}
+.card h2{font-size:1.05rem;font-weight:600;display:flex;align-items:center;gap:10px}
+.card h2 .step-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:.85rem;font-weight:700;flex-shrink:0}
+/* ====== Drop Zone ====== */
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px 16px;text-align:center;cursor:pointer;transition:all .2s;color:var(--text2)}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--primary);background:#eef2ff;color:var(--primary)}
+.drop-zone .icon{font-size:2rem;margin-bottom:8px}
+.drop-zone .hint{font-size:.85rem}
+.drop-zone input{display:none}
+/* ====== Form Controls ====== */
+label{display:block;font-size:.85rem;font-weight:500;margin-bottom:4px;color:var(--text2)}
+input[type=text],textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;font-family:inherit;transition:border .2s;resize:vertical}
+input[type=text]:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+textarea{min-height:100px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-outline{background:var(--card);color:var(--primary);border:1.5px solid var(--primary)}
+.btn-outline:hover{background:#eef2ff}
+.btn-block{width:100%}
+/* ====== Status Badge ====== */
+.status-row{display:flex;align-items:center;gap:10px;font-size:.9rem}
+.id-badge{display:inline-block;background:#eef2ff;color:var(--primary);padding:3px 12px;border-radius:20px;font-size:.82rem;font-weight:600}
+.spinner{display:none;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+.spinner.show{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ====== Results ====== */
+.results-section{margin-top:28px}
+.results-section h2{font-size:1.2rem;margin-bottom:16px}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:660px){.result-grid{grid-template-columns:1fr}}
+/* Progress Bar */
+.score-circle{display:flex;align-items:center;gap:16px}
+.progress-ring{position:relative;width:100px;height:100px;flex-shrink:0}
+.progress-ring svg{transform:rotate(-90deg)}
+.progress-ring .bg{fill:none;stroke:var(--border);stroke-width:8}
+.progress-ring .fill{fill:none;stroke:var(--primary);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .8s ease}
+.progress-ring .score-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700}
+.match-tag{display:inline-block;padding:4px 14px;border-radius:20px;font-size:.82rem;font-weight:600}
+.match-tag.matched{background:#d1fae5;color:#065f46}
+.match-tag.unmatched{background:#fee2e2;color:#991b1b}
+/* Lists */
+.list-block h3{font-size:.9rem;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.list-block ul{list-style:none;display:flex;flex-direction:column;gap:6px}
+.list-block li{padding:10px 14px;border-radius:8px;font-size:.88rem;line-height:1.5}
+.strengths li{background:#d1fae5;color:#065f46}
+.gaps li{background:#fee2e2;color:#991b1b}
+.suggestions li{background:#eef2ff;color:#3730a3}
+/* ====== Toast ====== */
+.toast{position:fixed;top:20px;right:20px;z-index:999;padding:14px 20px;border-radius:var(--radius);color:#fff;font-weight:500;font-size:.9rem;animation:slideIn .3s ease;max-width:400px}
+.toast.error{background:var(--danger)}
+.toast.success{background:var(--success)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+/* ====== Footer ====== */
+footer{text-align:center;padding:20px;color:var(--text2);font-size:.82rem}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📄 Resume Analysis Agent</h1>
+  <p>上传简历 · 录入JD · 智能匹配分析</p>
+</header>
+
+<div class="container">
+
+  <!-- ====== 三个步骤卡片 ====== -->
+  <div class="steps">
+
+    <!-- Step 1: 上传简历 -->
+    <div class="card" id="resume-card">
+      <h2><span class="step-num">1</span> 上传简历</h2>
+      <div class="drop-zone" id="resume-drop">
+        <div class="icon">📂</div>
+        <div class="hint">拖拽 PDF / DOC / DOCX 到此处<br>或点击选择文件</div>
+        <input type="file" id="resume-file" accept=".pdf,.doc,.docx">
+      </div>
+      <div class="status-row" id="resume-status" style="display:none">
+        <span class="spinner" id="resume-spinner"></span>
+        <span id="resume-msg"></span>
+      </div>
+      <div id="resume-id-row" style="display:none">
+        <span class="id-badge" id="resume-id-badge"></span>
+      </div>
+    </div>
+
+    <!-- Step 2: 录入JD -->
+    <div class="card" id="job-card">
+      <h2><span class="step-num">2</span> 录入岗位JD</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="flex:1" id="tab-text" onclick="switchJobTab('text')">📝 文本输入</button>
+        <button class="btn btn-outline" style="flex:1" id="tab-file" onclick="switchJobTab('file')">📎 文件上传</button>
+      </div>
+      <!-- 文本模式 -->
+      <div id="job-text-panel">
+        <label>岗位名称</label>
+        <input type="text" id="job-title" placeholder="例：Java高级开发工程师">
+        <label>公司名称 <span style="font-weight:400;color:var(--text2)">(选填)</span></label>
+        <input type="text" id="job-company" placeholder="例：ABC科技有限公司">
+        <label>JD正文</label>
+        <textarea id="job-content" placeholder="粘贴岗位描述..."></textarea>
+        <button class="btn btn-primary btn-block" onclick="submitJobText()">提交文本</button>
+      </div>
+      <!-- 文件模式 -->
+      <div id="job-file-panel" style="display:none">
+        <div class="drop-zone" id="job-drop">
+          <div class="icon">📎</div>
+          <div class="hint">拖拽 PDF / DOC / DOCX / TXT<br>或点击选择文件</div>
+          <input type="file" id="job-file" accept=".pdf,.doc,.docx,.txt">
+        </div>
+      </div>
+      <div class="status-row" id="job-status" style="display:none">
+        <span class="spinner" id="job-spinner"></span>
+        <span id="job-msg"></span>
+      </div>
+      <div id="job-id-row" style="display:none">
+        <span class="id-badge" id="job-id-badge"></span>
+      </div>
+    </div>
+
+    <!-- Step 3: 匹配分析 -->
+    <div class="card" id="match-card">
+      <h2><span class="step-num">3</span> 匹配分析</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="resume-id-input" placeholder="简历ID" style="width:80px;text-align:center" readonly>
+        <span style="color:var(--text2);font-weight:600">+</span>
+        <input type="text" id="job-id-input" placeholder="JD ID" style="width:80px;text-align:center" readonly>
+        <span style="color:var(--text2);font-weight:600">→</span>
+      </div>
+      <button class="btn btn-primary btn-block" id="analyze-btn" onclick="runAnalysis()" disabled>
+        🔍 开始匹配分析
+      </button>
+      <div class="status-row" id="match-status" style="display:none">
+        <span class="spinner show"></span>
+        <span>AI 正在分析匹配度...</span>
+      </div>
+      <p style="font-size:.78rem;color:var(--text2);text-align:center">完成步骤 1 和 2 后自动填入 ID</p>
+    </div>
+  </div>
+
+  <!-- ====== 结果区域 ====== -->
+  <div class="results-section" id="results" style="display:none">
+    <h2>📊 分析结果</h2>
+    <div class="result-grid">
+
+      <!-- 分数 + 匹配状态 -->
+      <div class="card">
+        <div class="score-circle">
+          <div class="progress-ring">
+            <svg width="100" height="100">
+              <circle class="bg" cx="50" cy="50" r="42"/>
+              <circle class="fill" id="progress-fill" cx="50" cy="50" r="42"
+                      stroke-dasharray="263.9" stroke-dashoffset="263.9"/>
+            </svg>
+            <div class="score-text" id="score-num">0</div>
+          </div>
+          <div>
+            <div style="font-size:.85rem;color:var(--text2);margin-bottom:6px">匹配得分</div>
+            <span class="match-tag" id="match-tag">--</span>
+          </div>
+        </div>
+        <div style="font-size:.78rem;color:var(--text2);margin-top:4px" id="match-time"></div>
+      </div>
+
+      <!-- 优势 -->
+      <div class="card list-block">
+        <h3>✅ 优势</h3>
+        <ul class="strengths" id="strengths-list"></ul>
+      </div>
+
+      <!-- 差距 -->
+      <div class="card list-block">
+        <h3>⚠️ 差距</h3>
+        <ul class="gaps" id="gaps-list"></ul>
+      </div>
+
+      <!-- 建议 -->
+      <div class="card list-block">
+        <h3>💡 优化建议</h3>
+        <ul class="suggestions" id="suggestions-list"></ul>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<footer>Resume Analysis Agent · Powered by AI</footer>
+
+<!-- Toast -->
+<div class="toast" id="toast" style="display:none"></div>
+
+<script>
+/* ====== State ====== */
+let resumeId = null, jobId = null;
+
+/* ====== Helpers ====== */
+const $ = id => document.getElementById(id);
+function toast(msg, type='error') {
+  const t = $('toast');
+  t.textContent = msg; t.className = 'toast ' + type; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3500);
+}
+function show(el) { el.style.display = ''; }
+function hide(el) { el.style.display = 'none'; }
+function setLoading(spinner, row, showFlag) {
+  if (showFlag) { $(spinner).classList.add('show'); show($(row)); }
+  else { $(spinner).classList.remove('show'); hide($(row)); }
+}
+
+/* ====== Drag & Drop ====== */
+function setupDrop(zoneId, inputId, onFile) {
+  const zone = $(zoneId), input = $(inputId);
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) onFile(file);
+  });
+  input.addEventListener('change', () => {
+    const file = input.files[0];
+    if (file) onFile(file);
+    input.value = '';
+  });
+}
+
+/* ====== Resume Upload ====== */
+setupDrop('resume-drop', 'resume-file', async file => {
+  show($('resume-status')); $('resume-msg').textContent = '上传中...';
+  setLoading('resume-spinner', 'resume-status', true);
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch('/api/resume/upload', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error((await res.json()).message || '上传失败');
+    const data = await res.json();
+    resumeId = data.data.id;
+    hide($('resume-status')); show($('resume-id-row'));
+    $('resume-id-badge').textContent = '简历ID: ' + resumeId + ' (' + data.data.fileName + ')';
+    $('resume-id-input').value = resumeId;
+    checkBothReady();
+    toast('简历上传成功! ID=' + resumeId, 'success');
+  } catch(e) {
+    $('resume-msg').textContent = '❌ ' + e.message;
+    setLoading('resume-spinner', 'resume-status', false);
+  }
+});
+
+/* ====== JD Text Submit ====== */
+async function submitJobText() {
+  const title = $('job-title').value.trim(), content = $('job-content').value.trim();
+  if (!title || !content) { toast('岗位名称和JD正文不能为空'); return; }
+  show($('job-status')); $('job-msg').textContent = '提交中...';
+  setLoading('job-spinner', 'job-status', true);
+  try {
+    const res = await fetch('/api/job/text', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({title, company:$('job-company').value.trim(), content})
+    });
+    if (!res.ok) throw new Error((await res.json()).message || '提交失败');
+    const data = await res.json();
+    jobId = data.data.id;
+    hide($('job-status')); show($('job-id-row'));
+    $('job-id-badge').textContent = 'JD ID: ' + jobId + ' (' + data.data.title + ')';
+    $('job-id-input').value = jobId;
+    checkBothReady();
+    toast('JD提交成功! ID=' + jobId, 'success');
+  } catch(e) {
+    $('job-msg').textContent = '❌ ' + e.message;
+    setLoading('job-spinner', 'job-status', false);
+  }
+}
+
+/* ====== JD File Upload ====== */
+setupDrop('job-drop', 'job-file', async file => {
+  show($('job-status')); $('job-msg').textContent = '上传中...';
+  setLoading('job-spinner', 'job-status', true);
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch('/api/job/upload', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error((await res.json()).message || '上传失败');
+    const data = await res.json();
+    jobId = data.data.id;
+    hide($('job-status')); show($('job-id-row'));
+    $('job-id-badge').textContent = 'JD ID: ' + jobId + ' (' + data.data.title + ')';
+    $('job-id-input').value = jobId;
+    checkBothReady();
+    toast('JD文件上传成功! ID=' + jobId, 'success');
+  } catch(e) {
+    $('job-msg').textContent = '❌ ' + e.message;
+    setLoading('job-spinner', 'job-status', false);
+  }
+});
+
+/* ====== JD Tab Switch ====== */
+let jobMode = 'text';
+function switchJobTab(mode) {
+  jobMode = mode;
+  if (mode === 'text') {
+    show($('job-text-panel')); hide($('job-file-panel'));
+    $('tab-text').className = 'btn btn-primary'; $('tab-file').className = 'btn btn-outline';
+  } else {
+    hide($('job-text-panel')); show($('job-file-panel'));
+    $('tab-file').className = 'btn btn-primary'; $('tab-text').className = 'btn btn-outline';
+  }
+}
+switchJobTab('text'); // init
+
+/* ====== Check Ready ====== */
+function checkBothReady() {
+  if (resumeId && jobId) {
+    $('analyze-btn').disabled = false;
+    $('analyze-btn').textContent = '🔍 开始匹配分析';
+  }
+}
+
+/* ====== Run Analysis ====== */
+async function runAnalysis() {
+  if (!resumeId || !jobId) return;
+  show($('match-status')); hide($('results'));
+  $('analyze-btn').disabled = true;
+  try {
+    const res = await fetch('/api/match/analyze', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({resumeId, jobId})
+    });
+    if (!res.ok) throw new Error((await res.json()).message || '分析失败');
+    const data = await res.json();
+    renderResults(data.data);
+    hide($('match-status'));
+    toast('匹配分析完成!', 'success');
+  } catch(e) {
+    hide($('match-status'));
+    toast('分析失败: ' + e.message);
+  }
+  $('analyze-btn').disabled = !(resumeId && jobId);
+}
+
+/* ====== Render Results ====== */
+function renderResults(r) {
+  show($('results'));
+
+  // 分数进度条
+  const score = r.matchScore || 0;
+  const circumference = 263.9; // 2 * PI * 42
+  const offset = circumference - (score / 100) * circumference;
+  $('progress-fill').style.strokeDashoffset = offset;
+  $('progress-fill').style.stroke = score >= 60 ? 'var(--success)' : score >= 30 ? 'var(--warning)' : 'var(--danger)';
+  $('score-num').textContent = score;
+
+  // 匹配标签
+  const tag = $('match-tag');
+  if (r.isMatched) { tag.textContent = '✅ 匹配'; tag.className = 'match-tag matched'; }
+  else { tag.textContent = '❌ 不匹配'; tag.className = 'match-tag unmatched'; }
+
+  // 时间
+  $('match-time').textContent = r.createTime ? '分析时间: ' + new Date(r.createTime).toLocaleString() : '';
+
+  // 列表
+  renderList('strengths-list', r.strengths || []);
+  renderList('gaps-list', r.gaps || []);
+  renderList('suggestions-list', r.suggestions || []);
+
+  // 滚动到结果
+  $('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function renderList(listId, items) {
+  const ul = $(listId);
+  ul.innerHTML = items.length ? items.map(i => '<li>' + escapeHtml(i) + '</li>').join('') : '<li style="background:#f9fafb;color:var(--text2)">暂无</li>';
+}
+function escapeHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+</script>
+
+</body>
+</html>
