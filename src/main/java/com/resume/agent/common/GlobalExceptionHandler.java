@@ -5,7 +5,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @Slf4j
 @RestControllerAdvice
@@ -28,16 +27,6 @@ public class GlobalExceptionHandler {
     public Result<Void> handleIllegalArgument(IllegalArgumentException e) {
         log.warn("参数异常: {}", e.getMessage());
         return Result.error(ErrorCode.BAD_REQUEST.getCode(), e.getMessage());
-    }
-
-    /**
-     * 文件大小超限 (Spring 在到达 Controller 前抛出)
-     */
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Result<Void> handleMaxUploadSize(MaxUploadSizeExceededException e) {
-        log.warn("上传文件大小超限: {}", e.getMessage());
-        return Result.error(ErrorCode.FILE_TOO_LARGE);
     }
 
     /**
