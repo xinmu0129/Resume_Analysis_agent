@@ -71,14 +71,42 @@ CREATE TABLE IF NOT EXISTS match_record (
 -- ============================================
 -- 迁移: Token 优化新增列 (已有数据库执行)
 -- 首次建库会自动包含上述列，迁移仅对旧库生效
+-- 使用预处理语句实现 "ADD COLUMN IF NOT EXISTS" (MySQL 8.0 不支持该语法)
 -- ============================================
-ALTER TABLE resume
-    ADD COLUMN IF NOT EXISTS cleaned_text    LONGTEXT       NULL COMMENT '清洗后文本 (供LLM使用)' AFTER raw_text,
-    ADD COLUMN IF NOT EXISTS skills          TEXT           NULL COMMENT '提取的技能(逗号分隔)'   AFTER cleaned_text,
-    ADD COLUMN IF NOT EXISTS experience_years VARCHAR(100)  NULL COMMENT '工作年限'              AFTER skills,
-    ADD COLUMN IF NOT EXISTS education       VARCHAR(100)   NULL COMMENT '学历'                  AFTER experience_years;
 
-ALTER TABLE job
-    ADD COLUMN IF NOT EXISTS cleaned_text        LONGTEXT   NULL COMMENT '清洗后文本 (供LLM使用)' AFTER raw_text,
-    ADD COLUMN IF NOT EXISTS skills              TEXT       NULL COMMENT '要求的技能(逗号分隔)'   AFTER cleaned_text,
-    ADD COLUMN IF NOT EXISTS experience_required VARCHAR(100) NULL COMMENT '经验要求'            AFTER skills;
+-- resume 表迁移
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'resume_analysis' AND TABLE_NAME = 'resume' AND COLUMN_NAME = 'cleaned_text') = 0,
+    'ALTER TABLE resume ADD COLUMN cleaned_text LONGTEXT NULL COMMENT ''清洗后文本'' AFTER raw_text', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'resume_analysis' AND TABLE_NAME = 'resume' AND COLUMN_NAME = 'skills') = 0,
+    'ALTER TABLE resume ADD COLUMN skills TEXT NULL COMMENT ''提取的技能'' AFTER cleaned_text', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'resume_analysis' AND TABLE_NAME = 'resume' AND COLUMN_NAME = 'experience_years') = 0,
+    'ALTER TABLE resume ADD COLUMN experience_years VARCHAR(100) NULL COMMENT ''工作年限'' AFTER skills', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'resume_analysis' AND TABLE_NAME = 'resume' AND COLUMN_NAME = 'education') = 0,
+    'ALTER TABLE resume ADD COLUMN education VARCHAR(100) NULL COMMENT ''学历'' AFTER experience_years', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- job 表迁移
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'resume_analysis' AND TABLE_NAME = 'job' AND COLUMN_NAME = 'cleaned_text') = 0,
+    'ALTER TABLE job ADD COLUMN cleaned_text LONGTEXT NULL COMMENT ''清洗后文本'' AFTER raw_text', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'resume_analysis' AND TABLE_NAME = 'job' AND COLUMN_NAME = 'skills') = 0,
+    'ALTER TABLE job ADD COLUMN skills TEXT NULL COMMENT ''要求的技能'' AFTER cleaned_text', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'resume_analysis' AND TABLE_NAME = 'job' AND COLUMN_NAME = 'experience_required') = 0,
+    'ALTER TABLE job ADD COLUMN experience_required VARCHAR(100) NULL COMMENT ''经验要求'' AFTER skills', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
