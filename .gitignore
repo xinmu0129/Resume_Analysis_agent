@@ -38,5 +38,21 @@ logs/
 .env
 .env.local
 
+# 用户上传文件（含个人简历，绝对不可提交）
+uploads/
+
+# 个人简历文件（绝对不可提交）
+resumeByme/
+
+# 对话日志（含完整工程记录，仅本地保留）
+*.jsonl
+对话数据.txt
+
+# 临时构建脚本
+build_jsonl.py
+generate_jsonl.py
+
+# 含真实密码 / API Key 的配置文件（绝对不可提交）
+# 请使用 application-template.yml 和 application-dev-template.yml 作为模板
 application-dev.yml
 application.yml

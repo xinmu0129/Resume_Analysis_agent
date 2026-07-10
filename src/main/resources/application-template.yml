@@ -1,0 +1,47 @@
+# ============================================
+# 简历分析 Agent — 配置模板
+# 复制为 application.yml 并填入你的真实值
+# ============================================
+server:
+  port: 8080
+
+spring:
+  application:
+    name: resume-analysis-agent
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 简历上传
+resume:
+  upload:
+    path: ./uploads/resume/
+    max-size: 10485760
+
+# JD上传
+job:
+  upload:
+    path: ./uploads/job/
+    max-size: 10485760
+
+# LLM 配置 — 请填入你的 API Key
+llm:
+  api-key: "your-api-key-here"
+  base-url: "https://api.deepseek.com"
+  model: "deepseek-v4-flash"
+
+# 匹配分析
+match:
+  prompt:
+    max-input-chars: 6000
