@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS resume (
     file_path   VARCHAR(500)    NOT NULL                COMMENT '存储相对路径',
     file_size   BIGINT          NOT NULL  DEFAULT 0     COMMENT '文件大小(字节)',
     raw_text    LONGTEXT        NULL                    COMMENT 'Tika提取的原始文本',
+    cleaned_text LONGTEXT       NULL                    COMMENT '清洗后文本 (供LLM使用)',
+    skills      TEXT            NULL                    COMMENT '提取的技能(逗号分隔)',
+    experience_years VARCHAR(100) NULL                  COMMENT '工作年限',
+    education   VARCHAR(100)    NULL                    COMMENT '学历',
     status      VARCHAR(20)     NOT NULL  DEFAULT 'UPLOADED' COMMENT '状态: UPLOADED/PARSING/PARSED/FAILED',
     create_time DATETIME        NOT NULL  DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME        NOT NULL  DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -30,6 +34,9 @@ CREATE TABLE IF NOT EXISTS job (
     title       VARCHAR(255)    NOT NULL                COMMENT '岗位名称',
     company     VARCHAR(255)    NULL                    COMMENT '公司名称',
     raw_text    LONGTEXT        NULL                    COMMENT 'JD原始文本',
+    cleaned_text LONGTEXT       NULL                    COMMENT '清洗后文本 (供LLM使用)',
+    skills      TEXT            NULL                    COMMENT '要求的技能(逗号分隔)',
+    experience_required VARCHAR(100) NULL               COMMENT '经验要求',
     source_type VARCHAR(20)     NOT NULL                COMMENT '录入方式: UPLOAD / TEXT',
     source_path VARCHAR(500)    NULL                    COMMENT '文件路径 (UPLOAD时)',
     file_name   VARCHAR(255)    NULL                    COMMENT '原始文件名 (UPLOAD时)',
@@ -60,3 +67,18 @@ CREATE TABLE IF NOT EXISTS match_record (
     INDEX idx_resume_id (resume_id),
     INDEX idx_job_id (job_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='匹配记录表';
+
+-- ============================================
+-- 迁移: Token 优化新增列 (已有数据库执行)
+-- 首次建库会自动包含上述列，迁移仅对旧库生效
+-- ============================================
+ALTER TABLE resume
+    ADD COLUMN IF NOT EXISTS cleaned_text    LONGTEXT       NULL COMMENT '清洗后文本 (供LLM使用)' AFTER raw_text,
+    ADD COLUMN IF NOT EXISTS skills          TEXT           NULL COMMENT '提取的技能(逗号分隔)'   AFTER cleaned_text,
+    ADD COLUMN IF NOT EXISTS experience_years VARCHAR(100)  NULL COMMENT '工作年限'              AFTER skills,
+    ADD COLUMN IF NOT EXISTS education       VARCHAR(100)   NULL COMMENT '学历'                  AFTER experience_years;
+
+ALTER TABLE job
+    ADD COLUMN IF NOT EXISTS cleaned_text        LONGTEXT   NULL COMMENT '清洗后文本 (供LLM使用)' AFTER raw_text,
+    ADD COLUMN IF NOT EXISTS skills              TEXT       NULL COMMENT '要求的技能(逗号分隔)'   AFTER cleaned_text,
+    ADD COLUMN IF NOT EXISTS experience_required VARCHAR(100) NULL COMMENT '经验要求'            AFTER skills;

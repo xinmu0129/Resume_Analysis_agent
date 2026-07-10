@@ -27,6 +27,18 @@ public class Resume {
     /** Tika提取的原始文本 */
     private String rawText;
 
+    /** 清洗后文本 (供LLM使用) */
+    private String cleanedText;
+
+    /** 提取的技能(逗号分隔) */
+    private String skills;
+
+    /** 工作年限 */
+    private String experienceYears;
+
+    /** 学历 */
+    private String education;
+
     /** 状态: UPLOADED / PARSING / PARSED / FAILED */
     private String status;
 

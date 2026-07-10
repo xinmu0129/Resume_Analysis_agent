@@ -7,6 +7,8 @@ import com.resume.agent.mapper.JobMapper;
 import com.resume.agent.model.dto.JobTextRequest;
 import com.resume.agent.model.vo.JobUploadVO;
 import com.resume.agent.service.JobService;
+import com.resume.agent.util.TextAnalyzer;
+import com.resume.agent.util.TextCleaner;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
@@ -46,13 +48,12 @@ public class JobServiceImpl implements JobService {
 
     @Override
     public JobUploadVO upload(MultipartFile file) {
-        // 1. 基础校验
         validateFile(file);
 
         String originalName = file.getOriginalFilename();
         String extension = getExtension(originalName);
 
-        // 2. 落盘
+        // 落盘
         String storedName = UUID.randomUUID() + "." + extension;
         Path filePath;
         try {
@@ -64,7 +65,7 @@ public class JobServiceImpl implements JobService {
             throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
         }
 
-        // 3. Tika 提取文本
+        // Tika 提取
         String rawText;
         try {
             rawText = extractText(file);
@@ -73,18 +74,10 @@ public class JobServiceImpl implements JobService {
             throw new BusinessException(ErrorCode.FILE_PARSE_ERROR);
         }
 
-        // 4. 入库 (文件名为默认标题)
         String title = stripExtension(originalName);
 
-        Job job = new Job();
-        job.setTitle(title);
-        job.setRawText(rawText);
-        job.setSourceType("UPLOAD");
-        job.setSourcePath(filePath.toString());
-        job.setFileName(originalName);
-        job.setFileSize(file.getSize());
-        job.setStatus("PARSED");
-
+        // ==== Layer 1+2: 清洗 + 结构化提取 ====
+        Job job = buildJobEntity(title, null, rawText, "UPLOAD", filePath.toString(), originalName, file.getSize());
         jobMapper.insert(job);
 
         Job saved = jobMapper.selectById(job.getId());
@@ -102,20 +95,43 @@ public class JobServiceImpl implements JobService {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "content 不能为空");
         }
 
-        Job job = new Job();
-        job.setTitle(request.getTitle().trim());
-        job.setCompany(request.getCompany() != null ? request.getCompany().trim() : null);
-        job.setRawText(request.getContent().trim());
-        job.setSourceType("TEXT");
-        job.setStatus("PARSED");
+        String rawText = request.getContent().trim();
+        String company = request.getCompany() != null ? request.getCompany().trim() : null;
 
+        // ==== Layer 1+2: 清洗 + 结构化提取 ====
+        Job job = buildJobEntity(request.getTitle().trim(), company, rawText, "TEXT", null, null, null);
         jobMapper.insert(job);
 
         Job saved = jobMapper.selectById(job.getId());
         return toVO(saved);
     }
 
-    // ---------- private ----------
+    // ---------- private: 清洗 + 分析 ----------
+
+    private Job buildJobEntity(String title, String company, String rawText,
+                               String sourceType, String sourcePath, String fileName, Long fileSize) {
+        String cleanedText = TextCleaner.clean(rawText);
+        TextAnalyzer.AnalysisResult analysis = TextAnalyzer.analyze(cleanedText);
+
+        log.info("JD文本清洗: {} chars → {} chars, skills=[{}], experience=[{}]",
+                rawText.length(), cleanedText.length(), analysis.skills(), analysis.experience());
+
+        Job job = new Job();
+        job.setTitle(title);
+        job.setCompany(company);
+        job.setRawText(rawText);
+        job.setCleanedText(cleanedText);
+        job.setSkills(analysis.skills());
+        job.setExperienceRequired(analysis.experience());
+        job.setSourceType(sourceType);
+        job.setSourcePath(sourcePath);
+        job.setFileName(fileName);
+        job.setFileSize(fileSize);
+        job.setStatus("PARSED");
+        return job;
+    }
+
+    // ---------- private: 文件处理 ----------
 
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -131,9 +147,7 @@ public class JobServiceImpl implements JobService {
     }
 
     private String getExtension(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return null;
-        }
+        if (filename == null || !filename.contains(".")) return null;
         return filename.substring(filename.lastIndexOf('.') + 1);
     }
 

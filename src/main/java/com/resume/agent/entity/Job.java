@@ -21,6 +21,15 @@ public class Job {
     /** JD原始文本 */
     private String rawText;
 
+    /** 清洗后文本 (供LLM使用) */
+    private String cleanedText;
+
+    /** 要求的技能(逗号分隔) */
+    private String skills;
+
+    /** 经验要求 */
+    private String experienceRequired;
+
     /** 录入方式: UPLOAD / TEXT */
     private String sourceType;
 

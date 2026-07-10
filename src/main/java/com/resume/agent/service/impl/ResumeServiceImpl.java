@@ -6,6 +6,8 @@ import com.resume.agent.entity.Resume;
 import com.resume.agent.mapper.ResumeMapper;
 import com.resume.agent.model.vo.ResumeUploadVO;
 import com.resume.agent.service.ResumeService;
+import com.resume.agent.util.TextAnalyzer;
+import com.resume.agent.util.TextCleaner;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
@@ -43,14 +45,12 @@ public class ResumeServiceImpl implements ResumeService {
 
     @Override
     public ResumeUploadVO upload(MultipartFile file) {
-        // 1. 基础校验
         validateFile(file);
 
-        // 2. 提取文件信息
         String originalName = file.getOriginalFilename();
         String extension = getExtension(originalName);
 
-        // 3. 落盘
+        // 落盘
         String storedName = UUID.randomUUID() + "." + extension;
         Path filePath;
         try {
@@ -62,7 +62,7 @@ public class ResumeServiceImpl implements ResumeService {
             throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
         }
 
-        // 4. Tika 提取文本
+        // Tika 提取文本
         String rawText;
         try {
             rawText = extractText(file);
@@ -71,19 +71,33 @@ public class ResumeServiceImpl implements ResumeService {
             throw new BusinessException(ErrorCode.FILE_PARSE_ERROR);
         }
 
-        // 5. 入库
+        // ==== Layer 1: 文本清洗 ====
+        String cleanedText = TextCleaner.clean(rawText);
+        log.info("文本清洗完成: {} chars → {} chars (减少 {}%)",
+                rawText.length(), cleanedText.length(),
+                rawText.length() > 0 ? (100 - cleanedText.length() * 100 / rawText.length()) : 0);
+
+        // ==== Layer 2: 结构化提取 ====
+        TextAnalyzer.AnalysisResult analysis = TextAnalyzer.analyze(cleanedText);
+
+        // 入库
         Resume resume = new Resume();
         resume.setFileName(originalName);
         resume.setFileType(extension.toLowerCase());
         resume.setFilePath(filePath.toString());
         resume.setFileSize(file.getSize());
-        resume.setRawText(rawText);
+        resume.setRawText(rawText);              // 原始 Tika 输出
+        resume.setCleanedText(cleanedText);      // 清洗后文本
+        resume.setSkills(analysis.skills());
+        resume.setExperienceYears(analysis.experience());
+        resume.setEducation(analysis.education());
         resume.setStatus("PARSED");
 
         resumeMapper.insert(resume);
 
-        // 6. 回查获取 DB 默认值 (create_time)
         Resume saved = resumeMapper.selectById(resume.getId());
+        log.info("简历结构化提取: skills=[{}], experience=[{}], education=[{}]",
+                analysis.skills(), analysis.experience(), analysis.education());
 
         return ResumeUploadVO.builder()
                 .id(saved.getId())
@@ -106,19 +120,17 @@ public class ResumeServiceImpl implements ResumeService {
         }
         String ext = getExtension(file.getOriginalFilename());
         if (ext == null || !ALLOWED_EXTENSIONS.contains(ext.toLowerCase())) {
-            throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
+            throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED, "仅支持 PDF / DOC / DOCX");
         }
     }
 
     private String getExtension(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return null;
-        }
+        if (filename == null || !filename.contains(".")) return null;
         return filename.substring(filename.lastIndexOf('.') + 1);
     }
 
     private String extractText(MultipartFile file) throws Exception {
-        BodyContentHandler handler = new BodyContentHandler(-1); // 无字符限制
+        BodyContentHandler handler = new BodyContentHandler(-1);
         Metadata metadata = new Metadata();
         ParseContext context = new ParseContext();
 
